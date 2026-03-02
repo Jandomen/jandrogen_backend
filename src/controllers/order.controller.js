@@ -23,9 +23,9 @@ const createOrder = async (req, res) => {
         console.warn("⚠️ Producto no encontrado:", item.productId);
         return res.status(404).json({ message: `Producto ${item.productId} no existe` });
       }
-      
+
       console.log("   📦 Producto:", product.name, "- Cantidad:", item.quantity, "- Precio: $", product.priceUSD);
-      
+
       const itemTotal = product.priceUSD * item.quantity;
       totalUSD += itemTotal;
       finalItems.push({
@@ -98,18 +98,45 @@ const createOrder = async (req, res) => {
   }
 };
 
-const getOrders = async (_req, res) => {
+const getOrders = async (req, res) => {
   try {
-    console.log("🛒 ➡️ Obteniendo todas las órdenes...");
-    
-    const orders = await Order.find()
-      .populate("items.product")
-      .sort({ createdAt: -1 });
+    console.log("🛒 ➡️ Obteniendo órdenes...");
 
-    console.log("✅ Órdenes encontradas:", orders.length);
-    res.json(orders);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search;
+
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { orderId: { $regex: search, $options: 'i' } },
+        { 'customer.name': { $regex: search, $options: 'i' } },
+        { 'customer.email': { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [orders, total] = await Promise.all([
+      Order.find(query).populate("items.product").skip(skip).limit(limit).sort({ createdAt: -1 }),
+      Order.countDocuments(query)
+    ]);
+
+    console.log("✅ Órdenes encontradas:", orders.length, "de", total);
+
+    res.json({
+      orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + orders.length < total
+      }
+    });
   } catch (error) {
-    console.error("🔥 Error listando órdenes:", error.message);
+    console.error("🔥 Error obteniendo órdenes:", error.message);
     res.status(500).json({ message: "Error obteniendo órdenes" });
   }
 };
@@ -118,7 +145,7 @@ const getOrderByTrackingId = async (req, res) => {
   try {
     const { folio } = req.params;
     console.log("🔍 ➡️ Buscando orden por folio:", folio);
-    
+
     const order = await Order.findOne({ orderId: folio })
       .populate("items.product");
 
