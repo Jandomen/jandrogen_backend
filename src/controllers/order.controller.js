@@ -7,12 +7,13 @@ const { getIO } = require("../config/socket");
 
 const createOrder = async (req, res) => {
   try {
-    const { items, customer, shippingAddress, technicalSpecs } = req.body;
+    const { items, customer, shippingAddress, technicalSpecs, paymentMethod } = req.body;
 
     console.log("🛒 ➕ Creando nueva orden...");
     console.log("   👤 Cliente:", customer.name);
     console.log("   📧 Email:", customer.email);
     console.log("   📦 Items en orden:", items.length);
+    console.log("   💳 Método de pago:", paymentMethod);
 
     let totalUSD = 0;
     const finalItems = [];
@@ -49,6 +50,7 @@ const createOrder = async (req, res) => {
       customer,
       shippingAddress,
       technicalSpecs,
+      paymentMethod,
       estimatedDeliveryDate
     });
 
